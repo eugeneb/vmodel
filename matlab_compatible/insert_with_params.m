@@ -225,7 +225,6 @@ end
     cnt = 1;
     expr = '\s*(reg|wire)?\s*(?<b>\[[\s\w-:]*\])?\s*(?<n>.*)';
     for i=1:length(rec)
-        fprintf('%3d _%s_%s_\n', i, rec(i).t, rec(i).c);
         if strcmp(rec(i).t, 'input')
             inout_type = 1;
         elseif strcmp(rec(i).t, 'output')
