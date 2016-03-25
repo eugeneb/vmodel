@@ -155,27 +155,28 @@ end
     % % Collect Verilog2001-style parameters
     plist = {};
     expr = '#(?<p>\(.*?);';
-    header_params = regexp(header, expr, 'names');
-    param_end = 1;
-    if length(header_params) > 0
-        header_params = header_params(1).p;
-        ind = regexp(header_params, '[()]', 'start');
+    header_p = regexp(header, expr, 'names');
+    header_params = '';
+    header_inouts = header;
+    if length(header_p) > 0
+        item = header_p(1).p;
+        ind = regexp(item, '[()]', 'start');
         cnt = 0;
         for i=1:length(ind)
-            if header_params(ind(i)) == '('
+            if item(ind(i)) == '('
                 cnt = cnt + 1;
             else 
                 cnt = cnt - 1;
             end
             if (cnt == 0)
-                header_params = header_params(1:ind(i));
-                param_end = ind(i);
+                header_params = item(1:ind(i));
+                header_inouts = item(ind(i)+1:end);
                 break;
             end
         end
     end
     header_params = [header_params(2:end-1) ';']; % semicolon is added for regexp unification
-    header_inouts = [header(param_end:end) ';'];
+    header_inouts = [header_inouts ';'];
     
     % The rest of module with Verilog95-style parameters
     source_params = [header_params body];
@@ -204,13 +205,27 @@ end
     ilist = {};
     
     % Split the source to "(input|inout|output) A,B,...;" strings
-    expr = '(?<t>input|inout|output)\s(?<c>[^;]*)';
+    expr = '(?<t>input|inout|output)';
+    ind_s = regexp(source_inouts, expr, 'start');
+    ind_e = regexp(source_inouts, expr, 'end');
     rec = regexp(source_inouts, expr, 'names');
+    for i=1:length(rec)
+        if i<length(rec)
+            s = regexprep(source_inouts(ind_e(i)+1:ind_s(i+1)-1), '[,\s]*', '');
+            rec(i).c = regexprep(s, ';.*', ''); 
+        else
+            s = regexprep(source_inouts(ind_e(i)+1:end), '[,\s]*', '');
+            s = regexprep(s, ';.*', ''); 
+            s = regexprep(s, '\)$', '');
+            rec(i).c = s;
+        end
+    end
 
     % Parse each string separately
     cnt = 1;
     expr = '\s*(reg|wire)?\s*(?<b>\[[\s\w-:]*\])?\s*(?<n>.*)';
     for i=1:length(rec)
+        fprintf('%3d _%s_%s_\n', i, rec(i).t, rec(i).c);
         if strcmp(rec(i).t, 'input')
             inout_type = 1;
         elseif strcmp(rec(i).t, 'output')
