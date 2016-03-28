@@ -56,7 +56,7 @@ end
     % state machine
     for i = 1:length(s)
         switch state
-            case 0
+            case 0  % Plain text was before
                 if (s(i) == '/') %maybe starts comment
                     state = 1;
                 elseif ( (s(i) == char(13)) || (s(i) == char(10)) ) %new line
@@ -70,7 +70,7 @@ end
                     end
                     source_index = source_index + 1;
                 end
-            case 1
+            case 1  % Previous char was '/'
                 if (s(i) == '*') % multiline (/*) comment starts
                     state = 2;
                 elseif (s(i) == '/') % single-line (//) comment starts
@@ -83,25 +83,26 @@ end
                     source(source_index) = '/';
                     source(source_index+1) = s(i);
                     source_index = source_index + 2;
+                    state = 0;
                 end                    
-            case 2
+            case 2  % Multicolumn comment '/* ... '
                 if (s(i) == '*') % star in multiline comment (/* *)
                     state = 4;
                 end
-            case 3
+            case 3  % Single-column comment '// ... '
                 if ( (s(i) == char(13)) || (s(i) == char(10)) ) % new_line, end of single-line comment
                     state = 0;
                     source(source_index) = ' ';
                     source_index = source_index + 1;
                 end
-            case 4
+            case 4  % The end of multicolumn comment is waiting
                 if (s(i) == '/')    % end of multiline comment
                     state = 0;  
                 % star in multiline comment - do nothing
                 elseif (s(i) ~= '*') % plain text in multiline comment 
                     state = 2;
                 end
-            case 5
+            case 5  % This never happens
                 if ( (s(i) == char(13)) || (s(i) == char(10)) ) % new_line, end of define
                     state = 0;
                     source(source_index) = ' ';
@@ -109,7 +110,7 @@ end
                 end                
         end
     end
-    
+
     
     %% Keep only the module we need as top_module
     expr = 'module\W.*?endmodule(\s|^)';
@@ -175,6 +176,7 @@ end
             end
         end
     end
+
     header_params = [header_params(2:end-1) ';']; % semicolon is added for regexp unification
     header_inouts = [header_inouts ';'];
     
@@ -203,7 +205,6 @@ end
     
     %% grep all inouts
     ilist = {};
-    
     % Split the source to "(input|inout|output) A,B,...;" strings
     expr = '(?<t>input|inout|output)';
     ind_s = regexp(source_inouts, expr, 'start');
@@ -223,7 +224,7 @@ end
 
     % Parse each string separately
     cnt = 1;
-    expr = '\s*(reg|wire)?\s*(?<b>\[[\s\w-:]*\])?\s*(?<n>.*)';
+    expr = '\s*(reg|wire)?\s*(?<b>\[[\s\w-+*/:]*\])?\s*(?<n>.*)';
     for i=1:length(rec)
         if strcmp(rec(i).t, 'input')
             inout_type = 1;
